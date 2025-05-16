@@ -28,6 +28,8 @@ By understanding and preserving this DNA, we can help projects evolve in a way t
 - **Evolution Tracking**: Monitor how your project evolves over time
 - **Team Integration**: Adapt to your team's workflow and preferences
 - **Intelligent Suggestions**: Get recommendations based on your project's history
+- **Feature Analysis**: Deep dive into feature patterns and evolution
+- **Security Analysis**: Understand and improve security patterns
 - **DevOps Integration**: Analyze and optimize infrastructure patterns (Planned)
 
 ## 📝 Example Usage
@@ -38,6 +40,12 @@ $ codedna analyze
 
 # Get suggestions for a new feature
 $ codedna suggest-feature auth
+
+# Analyze specific feature patterns
+$ codedna analyze-feature auth
+
+# Analyze project security patterns
+$ codedna analyze-security
 
 # Review code changes
 $ codedna review pull-request/123
