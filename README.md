@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status: Proposal](https://img.shields.io/badge/Status-Proposal-blue)](https://github.com/thread-koder/codedna)
+[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://golang.org)
 
 > Understanding your project's genetic makeup to guide its evolution
 

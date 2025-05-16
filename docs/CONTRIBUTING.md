@@ -8,26 +8,6 @@
 4. Make your changes
 5. Submit a pull request
 
-## Development Setup
-
-```bash
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Build the project
-npm run build
-```
-
-## Code Style
-
-- Follow TypeScript best practices
-- Use meaningful variable names
-- Add comments for complex logic
-- Write unit tests for new features
-
 ## Pull Request Process
 
 1. Update documentation
@@ -43,20 +23,6 @@ npm run build
 3. Discuss implementation
 4. Get approval
 5. Implement the feature
-
-## Testing
-
-- Write unit tests
-- Add integration tests
-- Ensure good coverage
-- Test edge cases
-
-## Documentation
-
-- Update README.md
-- Add code comments
-- Update examples
-- Document new features
 
 ## Communication
 
