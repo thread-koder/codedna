@@ -4,7 +4,13 @@
 
 - [Basic Usage](#basic-usage)
 - [Project Analysis](#project-analysis)
+  - [Architecture Analysis](#1-architecture-analysis)
+  - [Code Pattern Analysis](#2-code-pattern-analysis)
+  - [Security Analysis](#3-security-analysis)
 - [Feature Development](#feature-development)
+  - [New Feature Suggestion](#1-new-feature-suggestion)
+  - [Feature Evolution](#2-feature-evolution)
+  - [Feature Analysis](#3-feature-analysis)
 - [Code Review](#code-review)
 - [Technical Debt](#technical-debt)
 - [Team Patterns](#team-patterns)
@@ -92,6 +98,31 @@ const handleUser = async (user: User): Promise<void> => {
 };
 ```
 
+### 3. Security Analysis
+
+```bash
+$ codedna analyze-security
+
+# Output:
+Security Analysis:
+1. Current Patterns:
+   - Authentication: JWT with refresh
+   - Authorization: Role-based
+   - Data protection: AES-256
+   - API security: Rate limiting
+
+2. Pattern Success:
+   - Vulnerability fixes: 12
+   - Team compliance: 95%
+   - Code coverage: 90%
+
+3. Areas for Improvement:
+   - Add security headers
+   - Enhance logging
+   - Update dependencies
+   - Expected Impact: 25% better security
+```
+
 ## Feature Development
 
 ### 1. New Feature Suggestion
@@ -135,6 +166,38 @@ Evolution Analysis:
    - Implement audit logging
    - Add rate limiting
    - Expected Impact: 40% better security
+```
+
+### 3. Feature Analysis
+
+```bash
+$ codedna analyze-feature auth
+
+# Output:
+Feature Analysis:
+1. Current Implementation:
+   - Authentication service
+   - JWT token management
+   - User session handling
+   - Role-based access
+
+2. Pattern Success:
+   - Authentication reliability: 99.9%
+   - Session management: 98%
+   - Access control: 95%
+   - Team adoption: High
+
+3. Evolution History:
+   - Basic authentication
+   - JWT implementation
+   - Refresh token system
+   - Role-based access control
+
+4. Suggested Improvements:
+   - Add MFA support
+   - Enhance session security
+   - Implement rate limiting
+   - Expected Impact: 30% better security
 ```
 
 ## Code Review

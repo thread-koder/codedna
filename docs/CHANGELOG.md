@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Project specification
 - Example use cases
 - Contributing guidelines
+- Feature analysis command for detailed feature pattern analysis
+- Security analysis command for comprehensive security pattern analysis
+- Enhanced pattern recognition for security and feature evolution
+- New documentation for security and feature analysis capabilities
 
 ### Changed
 

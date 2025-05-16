@@ -61,6 +61,4 @@ npm run build
 ## Communication
 
 - Use GitHub issues
-- Join our Discord
-- Follow our code of conduct
 - Be respectful and helpful
