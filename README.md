@@ -152,6 +152,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📚 Documentation
 
 - [Specification](docs/SPEC.md)
+- [How It Works](docs/HOW.md)
 - [Examples](docs/EXAMPLES.md)
 - [Contributing Guide](docs/CONTRIBUTING.md)
 - [Changelog](docs/CHANGELOG.md)
