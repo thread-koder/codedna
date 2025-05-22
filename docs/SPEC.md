@@ -45,6 +45,15 @@ This is a proposal document outlining the vision and technical approach for Code
 - Security analysis (checking vulnerabilities)
 - DevOps analysis (optimizing infrastructure)
 
+### 5. Language Agnostic
+
+- Universal pattern recognition that works with any language combination
+- Support for single-language and multi-language projects
+- Language-specific adapters for detailed analysis when needed
+- Pattern correlation across language boundaries
+- Focus on universal patterns rather than language-specific rules
+- Seamless support for projects adding new languages
+
 ## Future Vision
 
 - AI-powered suggestions

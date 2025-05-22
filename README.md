@@ -67,6 +67,11 @@ While other tools focus on code analysis and static rules, CodeDNA is a project 
 - **Other Tools**: Apply the same solutions to every project
 - **CodeDNA**: Helps your project evolve while maintaining its unique strengths
 
+### 7. Language-Agnostic vs. Language-Specific
+
+- **Other Tools**: Often limited to specific languages or frameworks
+- **CodeDNA**: Works with any project, whether it uses a single language or multiple languages, focusing on universal patterns and project DNA
+
 ## 🚀 Key Features
 
 - **Project DNA Analysis**: Understand your project's unique characteristics
@@ -78,7 +83,22 @@ While other tools focus on code analysis and static rules, CodeDNA is a project 
 - **Security Analysis**: Understand and improve security patterns
 - **DevOps Integration**: Analyze and optimize infrastructure patterns (Planned)
 
-## 📝 Example Usage
+## 🌐 Language Support
+
+CodeDNA is designed to work with any project, regardless of its language composition:
+
+- Single-language projects (e.g., a Vue.js frontend or a Python backend)
+- Multi-language projects (e.g., Python backend with Vue.js frontend)
+- Polyglot projects (e.g., Go microservices, Python data processing, TypeScript frontend)
+
+The tool analyzes universal patterns and project DNA, making it valuable for:
+
+- Any project, regardless of language choice
+- Teams using any combination of languages
+- Projects that might add new languages in the future
+- Maintaining consistency across language boundaries
+
+## 🎯 Example Usage
 
 ```bash
 # Analyze your project's DNA
