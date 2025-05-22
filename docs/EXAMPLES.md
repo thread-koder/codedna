@@ -425,7 +425,6 @@ If you have additional examples or use cases, please contribute them by:
 
 ## Notes
 
-- All examples are based on the current development state
 - Output formats may change as the project evolves
 - Some features may be planned for future releases
 - Examples show command-line usage and expected output
