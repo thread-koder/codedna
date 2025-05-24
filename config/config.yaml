@@ -1,0 +1,10 @@
+# CodeDNA Configuration
+
+# Logging Configuration
+log:
+  # Global logging settings
+  global:
+    level: info # debug, info, warn, error
+    format: console # console, json
+    output: stdout # stdout, file, both
+    file: ~/.codedna/logs/codedna.log
