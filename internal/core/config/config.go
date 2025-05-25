@@ -56,7 +56,7 @@ func Load() (*Config, error) {
 
 		setDefaults(v)
 
-		if configPath := v.GetString(ConfigPathEnv); configPath != "" {
+		if configPath := os.Getenv(ConfigPathEnv); configPath != "" {
 			v.SetConfigFile(configPath)
 		} else {
 			v.SetConfigName("config")
