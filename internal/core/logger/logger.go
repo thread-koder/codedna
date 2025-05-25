@@ -28,10 +28,15 @@ type Config struct {
 }
 
 func New(cfg Config) (*zap.Logger, error) {
+	component := cfg.Component
+	if component == "" {
+		component = "unknown"
+	}
+
 	zapCfg := zap.Config{
 		Level:       zap.NewAtomicLevelAt(getZapLevel(cfg.Level)),
 		Development: false,
-		Encoding:    cfg.Format,
+		Encoding:    getEncoderFormat(cfg.Format),
 		EncoderConfig: zapcore.EncoderConfig{
 			TimeKey:        "time",
 			LevelKey:       "level",
@@ -48,7 +53,7 @@ func New(cfg Config) (*zap.Logger, error) {
 		},
 		OutputPaths:      getOutputPaths(cfg.Output, cfg.File),
 		ErrorOutputPaths: []string{"stderr"},
-		InitialFields:    map[string]any{"component": cfg.Component},
+		InitialFields:    map[string]any{"component": component},
 	}
 
 	return zapCfg.Build()
@@ -79,5 +84,16 @@ func getZapLevel(level string) zapcore.Level {
 		return zapcore.ErrorLevel
 	default:
 		return zapcore.InfoLevel
+	}
+}
+
+func getEncoderFormat(format string) string {
+	switch format {
+	case "json":
+		return "json"
+	case "console":
+		return "console"
+	default:
+		return "console"
 	}
 }
