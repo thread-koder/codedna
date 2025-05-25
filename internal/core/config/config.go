@@ -1,10 +1,12 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/spf13/viper"
 )
@@ -12,6 +14,12 @@ import (
 const (
 	// ConfigPathEnv is the environment variable name for the config file path
 	ConfigPathEnv = "CODEDNA_CONFIG"
+)
+
+var (
+	cfg    *Config
+	cfgErr error
+	once   sync.Once
 )
 
 type Config struct {
@@ -39,38 +47,42 @@ func setDefaults(v *viper.Viper) {
 }
 
 func Load() (*Config, error) {
-	v := viper.New()
+	once.Do(func() {
+		v := viper.New()
 
-	// Configure environment variable support
-	v.SetEnvPrefix("CODEDNA")
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	v.AutomaticEnv()
+		// Configure environment variable support
+		v.SetEnvPrefix("CODEDNA")
+		v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+		v.AutomaticEnv()
 
-	setDefaults(v)
+		setDefaults(v)
 
-	// Check for config path in environment variable
-	if configPath := v.GetString(ConfigPathEnv); configPath != "" {
-		v.SetConfigFile(configPath)
-	} else {
-		v.SetConfigName("config")
-		v.SetConfigType("yaml")
-
-		v.AddConfigPath(".")                                                    // Current directory
-		v.AddConfigPath(filepath.Join(os.Getenv("HOME"), ".codedna"))           // User's home directory
-		v.AddConfigPath(filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "codedna")) // XDG config directory
-	}
-
-	if err := v.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("failed to read config: %w", err)
+		if configPath := v.GetString(ConfigPathEnv); configPath != "" {
+			v.SetConfigFile(configPath)
+		} else {
+			v.SetConfigName("config")
+			v.SetConfigType("yaml")
+			v.AddConfigPath(".")                                                    // Current directory
+			v.AddConfigPath(filepath.Join(os.Getenv("HOME"), ".codedna"))           // User's home directory
+			v.AddConfigPath(filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "codedna")) // XDG config directory
 		}
-		// Config file not found, but that's okay as we have defaults
-	}
 
-	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
+		if err := v.ReadInConfig(); err != nil {
+			if !errors.Is(err, viper.ConfigFileNotFoundError{}) {
+				cfgErr = fmt.Errorf("failed to read config: %w", err)
+				return
+			}
+			// Config file not found, but that's okay as we have defaults
+		}
 
-	return &cfg, nil
+		var config Config
+		if err := v.Unmarshal(&config); err != nil {
+			cfgErr = fmt.Errorf("failed to unmarshal config: %w", err)
+			return
+		}
+
+		cfg = &config
+	})
+
+	return cfg, cfgErr
 }
