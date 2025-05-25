@@ -6,6 +6,8 @@
 //		Level:     "debug",
 //		Format:    "console",
 //		Component: "cli",
+//		Output:    "stdout",
+//		File:      "logs/codedna.log",
 //	})
 //	defer logger.Sync()
 //
@@ -13,8 +15,6 @@
 package logger
 
 import (
-	"os"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -23,50 +23,61 @@ type Config struct {
 	Level     string // debug, info, warn, error
 	Format    string // json, console
 	Component string // core, external, cli ...etc
+	Output    string // stdout, file, both
+	File      string // file path
 }
 
-// New creates a new logger with debug information
 func New(cfg Config) (*zap.Logger, error) {
-	encoderConfig := zapcore.EncoderConfig{
-		TimeKey:        "ts",
-		LevelKey:       "level",
-		NameKey:        "logger",
-		CallerKey:      "caller",
-		FunctionKey:    zapcore.OmitKey,
-		MessageKey:     "msg",
-		StacktraceKey:  "stacktrace",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.CapitalColorLevelEncoder,
-		EncodeTime:     zapcore.ISO8601TimeEncoder,
-		EncodeDuration: zapcore.SecondsDurationEncoder,
-		EncodeCaller:   zapcore.ShortCallerEncoder,
+	zapCfg := zap.Config{
+		Level:       zap.NewAtomicLevelAt(getZapLevel(cfg.Level)),
+		Development: false,
+		Encoding:    cfg.Format,
+		EncoderConfig: zapcore.EncoderConfig{
+			TimeKey:        "time",
+			LevelKey:       "level",
+			NameKey:        "logger",
+			CallerKey:      "caller",
+			FunctionKey:    zapcore.OmitKey,
+			MessageKey:     "msg",
+			StacktraceKey:  "stacktrace",
+			LineEnding:     zapcore.DefaultLineEnding,
+			EncodeLevel:    zapcore.CapitalColorLevelEncoder,
+			EncodeTime:     zapcore.ISO8601TimeEncoder,
+			EncodeDuration: zapcore.SecondsDurationEncoder,
+			EncodeCaller:   zapcore.ShortCallerEncoder,
+		},
+		OutputPaths:      getOutputPaths(cfg.Output, cfg.File),
+		ErrorOutputPaths: []string{"stderr"},
+		InitialFields:    map[string]any{"component": cfg.Component},
 	}
 
-	level := zapcore.InfoLevel
-	if err := level.UnmarshalText([]byte(cfg.Level)); err != nil {
-		return nil, err
+	return zapCfg.Build()
+}
+
+func getOutputPaths(output, file string) []string {
+	switch output {
+	case "stdout":
+		return []string{"stdout"}
+	case "file":
+		return []string{file}
+	case "both":
+		return []string{"stdout", file}
+	default:
+		return []string{"stdout"}
 	}
+}
 
-	var core zapcore.Core
-	if cfg.Format == "json" {
-		core = zapcore.NewCore(
-			zapcore.NewJSONEncoder(encoderConfig),
-			zapcore.AddSync(os.Stdout),
-			level,
-		)
-	} else {
-		core = zapcore.NewCore(
-			zapcore.NewConsoleEncoder(encoderConfig),
-			zapcore.AddSync(os.Stdout),
-			level,
-		)
+func getZapLevel(level string) zapcore.Level {
+	switch level {
+	case "debug":
+		return zapcore.DebugLevel
+	case "info":
+		return zapcore.InfoLevel
+	case "warn":
+		return zapcore.WarnLevel
+	case "error":
+		return zapcore.ErrorLevel
+	default:
+		return zapcore.InfoLevel
 	}
-
-	logger := zap.New(core,
-		zap.AddCaller(),
-		zap.AddStacktrace(zapcore.ErrorLevel),
-		zap.Fields(zap.String("component", cfg.Component)),
-	)
-
-	return logger, nil
 }
