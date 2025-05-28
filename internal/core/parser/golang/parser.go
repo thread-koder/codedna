@@ -61,7 +61,11 @@ func (p *Parser) ParseFile(filename string) (ast.Node, error) {
 	pkg := types.NewPackage(file.Name.Name, "")
 	files := []*goast.File{file}
 	if err := types.NewChecker(&p.conf, p.fset, pkg, p.info).Files(files); err != nil {
-		// Continue even if there are type errors
+		// Intentionally ignoring type errors:
+		// - Type checking is best-effort for enhanced type information
+		// - Parsing should succeed even with type errors
+		// - Common with incomplete/partial files or missing dependencies
+		_ = err
 	}
 
 	return p.convertFile(file), nil
