@@ -1,4 +1,4 @@
-package goparser
+package goparser_test
 
 import (
 	"os"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"codedna/internal/core/parser/ast"
+	goparser "codedna/internal/core/parser/golang"
 )
 
 // Helper function to find nodes of a specific type
@@ -79,7 +80,7 @@ var (
 `
 
 func TestBasicInfo(t *testing.T) {
-	p := New()
+	p := goparser.New()
 
 	t.Run("Language", func(t *testing.T) {
 		if lang := p.Language(); lang != "Go" {
@@ -103,7 +104,7 @@ func TestNodeCounts(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	p := New()
+	p := goparser.New()
 	node, err := p.ParseFile(testFile)
 	if err != nil {
 		t.Fatalf("ParseFile failed: %v", err)
@@ -228,7 +229,7 @@ func TestNodeAttributes(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	p := New()
+	p := goparser.New()
 	root, err := p.ParseFile(testFile)
 	if err != nil {
 		t.Fatalf("Failed to parse: %v", err)
@@ -293,7 +294,7 @@ func TestNodeAttributes(t *testing.T) {
 		for _, v := range variables {
 			attrs := v.Attributes()
 			name := attrs["name"].(string)
-			typeInfo, ok := attrs["type"].(*TypeInfo)
+			typeInfo, ok := attrs["type"].(*goparser.TypeInfo)
 			if !ok {
 				t.Errorf("For variable %s: Expected type to be *TypeInfo, got %T", name, attrs["type"])
 				continue
@@ -384,16 +385,16 @@ func TestNodeAttributes(t *testing.T) {
 
 			switch name {
 			case "main":
-				params, ok := sig["params"].([]*TypeInfo)
+				params, ok := sig["params"].([]*goparser.TypeInfo)
 				if !ok || len(params) != 0 {
 					t.Errorf("Expected main params=[], got %v", sig["params"])
 				}
-				returns, ok := sig["returns"].([]*TypeInfo)
+				returns, ok := sig["returns"].([]*goparser.TypeInfo)
 				if !ok || len(returns) != 0 {
 					t.Errorf("Expected main returns=[], got %v", sig["returns"])
 				}
 			case "add":
-				params, ok := sig["params"].([]*TypeInfo)
+				params, ok := sig["params"].([]*goparser.TypeInfo)
 				if !ok || len(params) != 2 {
 					t.Errorf("Expected add params to have 2 elements, got %v", sig["params"])
 				} else {
@@ -403,7 +404,7 @@ func TestNodeAttributes(t *testing.T) {
 						}
 					}
 				}
-				returns, ok := sig["returns"].([]*TypeInfo)
+				returns, ok := sig["returns"].([]*goparser.TypeInfo)
 				if !ok || len(returns) != 1 {
 					t.Errorf("Expected add returns to have 1 element, got %v", sig["returns"])
 				} else {
@@ -429,7 +430,7 @@ func TestNodeAttributes(t *testing.T) {
 				t.Errorf("Expected name=Handle, got %v", name)
 			}
 
-			recvType, ok := attrs["receiver_type"].(*TypeInfo)
+			recvType, ok := attrs["receiver_type"].(*goparser.TypeInfo)
 			if !ok {
 				t.Errorf("Expected receiver_type to be *TypeInfo, got %T", attrs["receiver_type"])
 			} else if recvType.Kind != "pointer" || recvType.ElemType == nil || recvType.ElemType.Name != "MyHandler" {
@@ -442,7 +443,7 @@ func TestNodeAttributes(t *testing.T) {
 				return
 			}
 
-			params, ok := sig["params"].([]*TypeInfo)
+			params, ok := sig["params"].([]*goparser.TypeInfo)
 			if !ok || len(params) != 1 {
 				t.Errorf("Expected params to have 1 element, got %v", sig["params"])
 			} else {
@@ -452,7 +453,7 @@ func TestNodeAttributes(t *testing.T) {
 				}
 			}
 
-			returns, ok := sig["returns"].([]*TypeInfo)
+			returns, ok := sig["returns"].([]*goparser.TypeInfo)
 			if !ok || len(returns) != 1 {
 				t.Errorf("Expected returns to have 1 element, got %v", sig["returns"])
 			} else {
@@ -524,7 +525,7 @@ func TestNodeAttributes(t *testing.T) {
 				return
 			}
 
-			params, ok := sig["params"].([]*TypeInfo)
+			params, ok := sig["params"].([]*goparser.TypeInfo)
 			if !ok || len(params) != 1 {
 				t.Errorf("Expected params to have 1 element, got %v", sig["params"])
 			} else {
@@ -534,7 +535,7 @@ func TestNodeAttributes(t *testing.T) {
 				}
 			}
 
-			returns, ok := sig["returns"].([]*TypeInfo)
+			returns, ok := sig["returns"].([]*goparser.TypeInfo)
 			if !ok || len(returns) != 1 {
 				t.Errorf("Expected returns to have 1 element, got %v", sig["returns"])
 			} else {
@@ -567,7 +568,7 @@ func TestDirectoryParsing(t *testing.T) {
 	}
 
 	// Parse and verify
-	p := New()
+	p := goparser.New()
 	nodes, err := p.ParseDir(tmpDir)
 	if err != nil {
 		t.Fatalf("ParseDir failed: %v", err)
@@ -585,7 +586,7 @@ func TestDirectoryParsing(t *testing.T) {
 }
 
 func BenchmarkParseFile(b *testing.B) {
-	parser := New()
+	parser := goparser.New()
 	filename := "testdata/sample.go"
 
 	for b.Loop() {
@@ -597,7 +598,7 @@ func BenchmarkParseFile(b *testing.B) {
 }
 
 func BenchmarkParseFileWithTypes(b *testing.B) {
-	parser := New()
+	parser := goparser.New()
 	filename := "testdata/types.go"
 
 	for b.Loop() {
@@ -609,7 +610,7 @@ func BenchmarkParseFileWithTypes(b *testing.B) {
 }
 
 func BenchmarkParseFileWithInterfaces(b *testing.B) {
-	parser := New()
+	parser := goparser.New()
 	filename := "testdata/interfaces.go"
 
 	for b.Loop() {
