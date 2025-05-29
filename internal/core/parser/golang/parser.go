@@ -495,8 +495,8 @@ func (p *Parser) convertGenDecl(decl *goast.GenDecl) ast.Node {
 	return nil
 }
 
-// Helper function to get a list of types from a FieldList
-func getTypeList(fields *goast.FieldList) []*TypeInfo {
+// Helper function to extract a list of types from a FieldList
+func typeList(fields *goast.FieldList) []*TypeInfo {
 	types := make([]*TypeInfo, 0)
 	if fields != nil {
 		for _, field := range fields.List {
@@ -544,8 +544,8 @@ func (p *Parser) createTypeNode(spec *goast.TypeSpec) ast.Node {
 						methodInfo := map[string]any{
 							"name": name.Name,
 							"signature": map[string]any{
-								"params":  getTypeList(methodType.Params),
-								"returns": getTypeList(methodType.Results),
+								"params":  typeList(methodType.Params),
+								"returns": typeList(methodType.Results),
 							},
 						}
 						methods = append(methods, methodInfo)
