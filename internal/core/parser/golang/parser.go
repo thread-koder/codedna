@@ -79,6 +79,23 @@ func (p *Parser) ParseDir(dir string) ([]ast.Node, error) {
 
 	var nodes []ast.Node
 	for _, pkg := range pkgs {
+		// Type check all files in the package together
+		files := make([]*goast.File, 0, len(pkg.Files))
+		for _, file := range pkg.Files {
+			files = append(files, file)
+		}
+
+		// Create a new package and type checker
+		typePkg := types.NewPackage(pkg.Name, "")
+		if err := types.NewChecker(&p.conf, p.fset, typePkg, p.info).Files(files); err != nil {
+			// Intentionally ignoring type errors:
+			// - Type checking is best-effort for enhanced type information
+			// - Parsing should succeed even with type errors
+			// - Common with incomplete/partial files or missing dependencies
+			_ = err
+		}
+
+		// Convert each file to our AST
 		for _, file := range pkg.Files {
 			nodes = append(nodes, p.convertFile(file))
 		}
@@ -517,23 +534,49 @@ func (p *Parser) createTypeNode(spec *goast.TypeSpec) ast.Node {
 	switch t := spec.Type.(type) {
 	case *goast.InterfaceType:
 		methods := make([]map[string]any, 0)
+		embedded := make([]map[string]any, 0)
 		if t.Methods != nil {
 			for _, method := range t.Methods.List {
-				if funcType, ok := method.Type.(*goast.FuncType); ok {
+				switch methodType := method.Type.(type) {
+				case *goast.FuncType:
+					// Regular method
 					for _, name := range method.Names {
 						methodInfo := map[string]any{
 							"name": name.Name,
 							"signature": map[string]any{
-								"params":  getTypeList(funcType.Params),
-								"returns": getTypeList(funcType.Results),
+								"params":  getTypeList(methodType.Params),
+								"returns": getTypeList(methodType.Results),
 							},
 						}
 						methods = append(methods, methodInfo)
+					}
+				case *goast.Ident:
+					// Embedded interface
+					if obj := p.info.Uses[methodType]; obj != nil {
+						if named, ok := obj.Type().(*types.Named); ok {
+							if _, isInterface := named.Underlying().(*types.Interface); isInterface {
+								embedded = append(embedded, map[string]any{
+									"type": &TypeInfo{
+										Kind: "basic",
+										Name: named.Obj().Name(),
+									},
+								})
+							}
+						}
+					} else {
+						// Fallback to AST name if type info not available
+						embedded = append(embedded, map[string]any{
+							"type": &TypeInfo{
+								Kind: "basic",
+								Name: methodType.Name,
+							},
+						})
 					}
 				}
 			}
 		}
 		node.SetAttribute("methods", methods)
+		node.SetAttribute("embedded", embedded)
 
 	case *goast.StructType:
 		fields := make([]map[string]any, 0)
