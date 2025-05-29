@@ -585,38 +585,32 @@ func TestDirectoryParsing(t *testing.T) {
 	}
 }
 
-func BenchmarkParseFile(b *testing.B) {
+func BenchmarkParser_ParseFile(b *testing.B) {
 	parser := goparser.New()
-	filename := "testdata/sample.go"
+	testFile := filepath.Join("testdata", "sample.go")
 
 	for b.Loop() {
-		_, err := parser.ParseFile(filename)
+		node, err := parser.ParseFile(testFile)
 		if err != nil {
-			b.Fatal(err)
+			b.Fatalf("Failed to parse file: %v", err)
+		}
+		if node == nil {
+			b.Fatal("Expected AST node")
 		}
 	}
 }
 
-func BenchmarkParseFileWithTypes(b *testing.B) {
+func BenchmarkParser_ParseDir(b *testing.B) {
 	parser := goparser.New()
-	filename := "testdata/types.go"
+	testDir := filepath.Join("testdata")
 
 	for b.Loop() {
-		_, err := parser.ParseFile(filename)
+		nodes, err := parser.ParseDir(testDir)
 		if err != nil {
-			b.Fatal(err)
+			b.Fatalf("Failed to parse directory: %v", err)
 		}
-	}
-}
-
-func BenchmarkParseFileWithInterfaces(b *testing.B) {
-	parser := goparser.New()
-	filename := "testdata/interfaces.go"
-
-	for b.Loop() {
-		_, err := parser.ParseFile(filename)
-		if err != nil {
-			b.Fatal(err)
+		if len(nodes) == 0 {
+			b.Fatal("Expected AST nodes")
 		}
 	}
 }
