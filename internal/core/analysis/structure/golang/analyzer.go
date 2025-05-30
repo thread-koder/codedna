@@ -720,3 +720,36 @@ func (a *Analyzer) addTypeReference(analysis *Analysis, source *Element, typeInf
 		}
 	}
 }
+
+// Merges two analyses
+func (a *Analyzer) Merge(base, other *Analysis) error {
+	if base == nil || other == nil {
+		return fmt.Errorf("cannot merge nil analyses")
+	}
+
+	// Verify both analyses are Go analyses
+	if base.Language() != "go" || other.Language() != "go" {
+		return fmt.Errorf("can only merge Go analyses")
+	}
+
+	existingPackages := make(map[string]*Element)
+	for _, elem := range base.Structure.Elements {
+		if elem.Type == ElementPackage {
+			existingPackages[elem.Name] = elem
+		}
+	}
+
+	for _, elem := range other.Structure.Elements {
+		if elem.Type == ElementPackage {
+			if _, exists := existingPackages[elem.Name]; exists {
+				continue
+			}
+		}
+		base.Structure.Elements = append(base.Structure.Elements, elem)
+	}
+
+	// Merge relationships
+	base.Structure.Relationships = append(base.Structure.Relationships, other.Structure.Relationships...)
+
+	return nil
+}

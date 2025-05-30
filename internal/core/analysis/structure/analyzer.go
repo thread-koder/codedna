@@ -20,4 +20,7 @@ type Analyzer interface {
 
 	// Analyze performs structural analysis on the given source code node
 	Analyze(node Node) (Analysis, error)
+
+	// Merge combines two analyses, handling language-specific differences
+	Merge(base, other *Analysis) error
 }

@@ -185,8 +185,9 @@ func TestAnalyzer_WholeDirectory(t *testing.T) {
 			if goAnalysis == nil {
 				goAnalysis = ga
 			} else {
-				goAnalysis.Structure.Elements = append(goAnalysis.Structure.Elements, ga.Structure.Elements...)
-				goAnalysis.Structure.Relationships = append(goAnalysis.Structure.Relationships, ga.Structure.Relationships...)
+				if err := analyzer.Merge(goAnalysis, ga); err != nil {
+					t.Fatalf("Failed to merge analyses: %v", err)
+				}
 			}
 		} else {
 			t.Fatalf("Expected Go analysis, got %T", analysis)
@@ -278,8 +279,8 @@ func TestAnalyzer_WholeDirectory(t *testing.T) {
 		collector.CollectMetrics(goAnalysis.Structure)
 
 		expectedMetrics := map[gostructure.MetricType]int{
-			gostructure.MetricTotalElements:   28, // All elements from both files
-			gostructure.MetricPackages:        2,  // testdata package appears twice
+			gostructure.MetricTotalElements:   27, // All elements from both files no duplicate packages
+			gostructure.MetricPackages:        1,  // testdata package appears twice
 			gostructure.MetricTypes:           6,  // All struct types
 			gostructure.MetricFunctions:       2,  // NewMemoryDocument, NewDocument
 			gostructure.MetricMethods:         9,  // All methods
@@ -360,8 +361,9 @@ func BenchmarkAnalyzer_WholeDirectory(b *testing.B) {
 				if goAnalysis == nil {
 					goAnalysis = ga
 				} else {
-					goAnalysis.Structure.Elements = append(goAnalysis.Structure.Elements, ga.Structure.Elements...)
-					goAnalysis.Structure.Relationships = append(goAnalysis.Structure.Relationships, ga.Structure.Relationships...)
+					if err := analyzer.Merge(goAnalysis, ga); err != nil {
+						b.Fatalf("Failed to merge analyses: %v", err)
+					}
 				}
 			} else {
 				b.Fatal("Expected Go analysis")
