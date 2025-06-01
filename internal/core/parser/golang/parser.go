@@ -13,11 +13,15 @@ import (
 
 // TypeInfo represents a type in a structural way
 type TypeInfo struct {
-	Kind      string    // The kind of type (e.g. "basic", "pointer", "array", "map", "chan", "interface")
-	Name      string    // The name of the type (e.g. "int", "string", "MyStruct")
-	ElemType  *TypeInfo // For pointer, array, chan types
-	KeyType   *TypeInfo // For map types
-	ValueType *TypeInfo // For map types
+	Kind        string      // The kind of type (e.g. "basic", "pointer", "array", "map", "chan", "interface", "generic")
+	Name        string      // The name of the type (e.g. "int", "string", "MyStruct")
+	ElemType    *TypeInfo   // For pointer, array, chan types
+	KeyType     *TypeInfo   // For map types
+	ValueType   *TypeInfo   // For map types
+	TypeParams  []*TypeInfo // For generic types - list of type parameters
+	TypeArgs    []*TypeInfo // For generic type instantiation - list of type arguments
+	Constraints []*TypeInfo // For generic type parameters - list of constraints
+	IsTypeParam bool        // Whether this type is a type parameter
 }
 
 // Implements the parser.Parser interface for Go
@@ -264,6 +268,55 @@ func (p *Parser) convertFunction(fn *goast.FuncDecl) ast.Node {
 	node.SetAttribute("is_exported", fn.Name.IsExported())
 	node.SetAttribute("file_path", pos.Filename)
 
+	// Handle type parameters if present
+	if fn.Type.TypeParams != nil {
+		typeParams := make([]*TypeInfo, 0, len(fn.Type.TypeParams.List))
+		for _, field := range fn.Type.TypeParams.List {
+			for _, name := range field.Names {
+				paramInfo := &TypeInfo{
+					Kind:        "type_param",
+					Name:        name.Name,
+					IsTypeParam: true,
+				}
+				// Handle constraints
+				if field.Type != nil {
+					switch constraint := field.Type.(type) {
+					case *goast.Ident:
+						// Basic constraint like "any" or "comparable"
+						paramInfo.Constraints = []*TypeInfo{{
+							Kind: "constraint",
+							Name: constraint.Name,
+						}}
+					case *goast.InterfaceType:
+						// Interface constraint
+						paramInfo.Constraints = []*TypeInfo{{
+							Kind: "interface",
+							Name: "interface{}",
+						}}
+					case *goast.UnaryExpr:
+						// Tilde (~) expressions for type constraints
+						if constraint.Op == token.TILDE {
+							paramInfo.Constraints = []*TypeInfo{{
+								Kind: "constraint",
+								Name: "~" + typeToTypeInfo(constraint.X).Name,
+							}}
+						}
+					case *goast.BinaryExpr:
+						// Union type constraints (|)
+						if constraint.Op == token.OR {
+							paramInfo.Constraints = []*TypeInfo{
+								typeToTypeInfo(constraint.X),
+								typeToTypeInfo(constraint.Y),
+							}
+						}
+					}
+				}
+				typeParams = append(typeParams, paramInfo)
+			}
+		}
+		node.SetAttribute("type_params", typeParams)
+	}
+
 	// Build function signature
 	params := make([]*TypeInfo, 0)
 	if fn.Type.Params != nil {
@@ -498,6 +551,19 @@ func typeToTypeInfo(expr goast.Expr) *TypeInfo {
 			Kind:     "chan",
 			ElemType: typeToTypeInfo(t.Value),
 		}
+	case *goast.IndexExpr: // Single type parameter
+		baseType := typeToTypeInfo(t.X)
+		baseType.Kind = "generic"
+		baseType.TypeArgs = []*TypeInfo{typeToTypeInfo(t.Index)}
+		return baseType
+	case *goast.IndexListExpr: // Multiple type parameters
+		baseType := typeToTypeInfo(t.X)
+		baseType.Kind = "generic"
+		baseType.TypeArgs = make([]*TypeInfo, len(t.Indices))
+		for i, arg := range t.Indices {
+			baseType.TypeArgs[i] = typeToTypeInfo(arg)
+		}
+		return baseType
 	}
 	return &TypeInfo{Kind: "unknown"}
 }
@@ -750,6 +816,55 @@ func (p *Parser) createTypeNode(spec *goast.TypeSpec) ast.Node {
 	node.SetAttribute("name", spec.Name.Name)
 	node.SetAttribute("is_exported", spec.Name.IsExported())
 	node.SetAttribute("file_path", specPos.Filename)
+
+	// Handle type parameters if present
+	if spec.TypeParams != nil {
+		typeParams := make([]*TypeInfo, 0, len(spec.TypeParams.List))
+		for _, field := range spec.TypeParams.List {
+			for _, name := range field.Names {
+				paramInfo := &TypeInfo{
+					Kind:        "type_param",
+					Name:        name.Name,
+					IsTypeParam: true,
+				}
+				// Handle constraints
+				if field.Type != nil {
+					switch constraint := field.Type.(type) {
+					case *goast.Ident:
+						// Basic constraint like "any" or "comparable"
+						paramInfo.Constraints = []*TypeInfo{{
+							Kind: "constraint",
+							Name: constraint.Name,
+						}}
+					case *goast.InterfaceType:
+						// Interface constraint
+						paramInfo.Constraints = []*TypeInfo{{
+							Kind: "interface",
+							Name: "interface{}",
+						}}
+					case *goast.UnaryExpr:
+						// Tilde (~) expressions for type constraints
+						if constraint.Op == token.TILDE {
+							paramInfo.Constraints = []*TypeInfo{{
+								Kind: "constraint",
+								Name: "~" + typeToTypeInfo(constraint.X).Name,
+							}}
+						}
+					case *goast.BinaryExpr:
+						// Union type constraints (|)
+						if constraint.Op == token.OR {
+							paramInfo.Constraints = []*TypeInfo{
+								typeToTypeInfo(constraint.X),
+								typeToTypeInfo(constraint.Y),
+							}
+						}
+					}
+				}
+				typeParams = append(typeParams, paramInfo)
+			}
+		}
+		node.SetAttribute("type_params", typeParams)
+	}
 
 	switch t := spec.Type.(type) {
 	case *goast.InterfaceType:
