@@ -7,29 +7,50 @@ import (
 // Defines the interface for dependency analysis
 type Analyzer interface {
 	// Performs dependency analysis on the given AST node
-	Analyze(node ast.Node) (*Graph, error)
+	Analyze(node ast.Node) error
 
 	// Checks if a specific dependency exists
-	// from: source identifier
-	// to: target identifier
-	// depType: type of dependency to check for
+	// Includes indirect dependencies if configured
 	HasDependency(from, to string, depType DependencyType) bool
 
 	// Returns all dependencies for a given node identifier
+	// Includes indirect dependencies if configured
 	Dependencies(nodeID string) []Dependency
 
 	// Returns all nodes that depend on the given node identifier
+	// Includes indirect dependents if configured
 	Dependents(nodeID string) []Dependency
 
-	// Detects and returns any circular dependencies
-	FindCircularDependencies() [][]string
-
 	// Returns all external dependencies
+	// Includes indirect external dependencies if configured
 	ExternalDependencies() map[string]*Node
 
-	// Merges two dependency graphs
-	// This is useful when analyzing multiple files or packages
-	Merge(other *Graph) error
+	// Returns all nodes of a specific type
+	NodesOfType(nodeType NodeType) []*Node
+
+	// Returns all dependencies of a specific type
+	DependenciesOfType(depType DependencyType) []Dependency
+
+	// Returns all root nodes (nodes with no incoming dependencies)
+	RootNodes() []*Node
+
+	// Returns all leaf nodes (nodes with no outgoing dependencies)
+	LeafNodes() []*Node
+
+	// Returns whether a node exists
+	HasNode(nodeID string) bool
+
+	// Returns a node by ID if it exists
+	Node(nodeID string) (*Node, bool)
+
+	// Returns all circular dependencies
+	FindCircularDependencies() [][]string
+
+	// Merges analysis results from another analyzer
+	Merge(other Analyzer) error
+
+	// Clears all analysis results
+	Clear()
 }
 
 // Holds configuration for dependency analysis
