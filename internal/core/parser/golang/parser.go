@@ -112,11 +112,82 @@ func (p *Parser) convertFile(file *goast.File) ast.Node {
 		Offset: pos.Offset,
 	})
 
-	// Add package name
+	// Add package name and file path
 	node.SetAttribute("package_name", file.Name.Name)
+	node.SetAttribute("file_path", pos.Filename)
 
 	// Track dependencies
 	dependencies := make([]string, 0)
+
+	// First pass: collect all type declarations and their methods
+	typeNodes := make(map[string]*ast.BaseNode)
+	methodsByType := make(map[string][]map[string]any)
+
+	for _, decl := range file.Decls {
+		switch d := decl.(type) {
+		case *goast.FuncDecl:
+			if d.Recv != nil && len(d.Recv.List) > 0 {
+				// This is a method
+				recv := d.Recv.List[0]
+				var typeName string
+				switch rt := recv.Type.(type) {
+				case *goast.StarExpr:
+					// Pointer receiver
+					if ident, ok := rt.X.(*goast.Ident); ok {
+						typeName = ident.Name
+					}
+				case *goast.Ident:
+					// Value receiver
+					typeName = rt.Name
+				}
+				if typeName != "" {
+					// Build method info
+					methodInfo := map[string]any{
+						"name": d.Name.Name,
+						"signature": map[string]any{
+							"params":  typeList(d.Type.Params),
+							"returns": typeList(d.Type.Results),
+						},
+					}
+					methodsByType[typeName] = append(methodsByType[typeName], methodInfo)
+				}
+			}
+		case *goast.GenDecl:
+			if d.Tok == token.TYPE {
+				for _, spec := range d.Specs {
+					if typeSpec, ok := spec.(*goast.TypeSpec); ok {
+						if typeNode, ok := p.createTypeNode(typeSpec).(*ast.BaseNode); ok {
+							if name, ok := typeNode.Attributes()["name"].(string); ok {
+								typeNodes[name] = typeNode
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Add methods to type nodes
+	for typeName, methods := range methodsByType {
+		if typeNode, ok := typeNodes[typeName]; ok {
+			typeNode.SetAttribute("methods", methods)
+		}
+	}
+
+	// Second pass: add all declarations to the module node
+	for _, decl := range file.Decls {
+		if declNode := p.convertDecl(decl); declNode != nil {
+			// If this is a type node, replace it with our annotated version
+			if declNode.Type() == string(ast.Type) || declNode.Type() == string(ast.Interface) {
+				if name, ok := declNode.Attributes()["name"].(string); ok {
+					if annotatedNode, ok := typeNodes[name]; ok {
+						declNode = annotatedNode
+					}
+				}
+			}
+			node.AddChild(declNode)
+		}
+	}
 
 	for _, imp := range file.Imports {
 		importNode := p.convertImport(imp)
@@ -127,12 +198,6 @@ func (p *Parser) convertFile(file *goast.File) ast.Node {
 	}
 
 	node.SetAttribute("dependencies", dependencies)
-
-	for _, decl := range file.Decls {
-		if declNode := p.convertDecl(decl); declNode != nil {
-			node.AddChild(declNode)
-		}
-	}
 
 	return node
 }
@@ -145,6 +210,8 @@ func (p *Parser) convertImport(imp *goast.ImportSpec) ast.Node {
 		Column: pos.Column,
 		Offset: pos.Offset,
 	})
+
+	node.SetAttribute("file_path", pos.Filename)
 
 	// Store import path without quotes
 	if imp.Path != nil {
@@ -195,6 +262,7 @@ func (p *Parser) convertFunction(fn *goast.FuncDecl) ast.Node {
 	// Store function name and export status
 	node.SetAttribute("name", fn.Name.Name)
 	node.SetAttribute("is_exported", fn.Name.IsExported())
+	node.SetAttribute("file_path", pos.Filename)
 
 	// Build function signature
 	params := make([]*TypeInfo, 0)
@@ -236,7 +304,154 @@ func (p *Parser) convertFunction(fn *goast.FuncDecl) ast.Node {
 		}
 	}
 
+	// Process function body for references
+	if fn.Body != nil {
+		body := make([]map[string]any, 0)
+		for _, stmt := range fn.Body.List {
+			stmtInfo := p.processStatement(stmt)
+			if stmtInfo != nil {
+				body = append(body, stmtInfo)
+			}
+		}
+		node.SetAttribute("body", body)
+	}
+
 	return node
+}
+
+// Helper function to process a statement and extract references
+func (p *Parser) processStatement(stmt goast.Stmt) map[string]any {
+	refs := make([]map[string]any, 0)
+
+	// Helper function to process an expression
+	var processExpr func(expr goast.Expr)
+	processExpr = func(expr goast.Expr) {
+		if expr == nil {
+			return
+		}
+
+		switch e := expr.(type) {
+		case *goast.CallExpr:
+			// Handle function calls
+			switch fun := e.Fun.(type) {
+			case *goast.SelectorExpr:
+				if pkg, ok := fun.X.(*goast.Ident); ok {
+					// Check if it's a package selector
+					if obj := p.info.Uses[pkg]; obj != nil && obj.Pkg() != nil {
+						ref := map[string]any{
+							"type": &TypeInfo{
+								Kind: "package",
+								Name: pkg.Name,
+							},
+						}
+						refs = append(refs, ref)
+					} else {
+						ref := map[string]any{
+							"type": &TypeInfo{
+								Kind: "basic",
+								Name: pkg.Name + "." + fun.Sel.Name,
+							},
+						}
+						refs = append(refs, ref)
+					}
+				}
+			case *goast.Ident:
+				// Handle direct function calls
+				if obj := p.info.Uses[fun]; obj != nil {
+					if pkg := obj.Pkg(); pkg != nil {
+						ref := map[string]any{
+							"type": &TypeInfo{
+								Kind: "basic",
+								Name: pkg.Name() + "." + fun.Name,
+							},
+						}
+						refs = append(refs, ref)
+					}
+				}
+			}
+			// Process arguments
+			for _, arg := range e.Args {
+				processExpr(arg)
+			}
+
+		case *goast.SelectorExpr:
+			// Handle field/method access
+			if x, ok := e.X.(*goast.Ident); ok {
+				// Check if it's a package selector
+				if obj := p.info.Uses[x]; obj != nil && obj.Pkg() != nil {
+					refs = append(refs, map[string]any{
+						"type": &TypeInfo{
+							Kind: "package",
+							Name: x.Name,
+						},
+					})
+				} else {
+					refs = append(refs, map[string]any{
+						"type": &TypeInfo{
+							Kind: "basic",
+							Name: x.Name + "." + e.Sel.Name,
+						},
+					})
+				}
+			}
+
+		case *goast.CompositeLit:
+			// Handle composite literals
+			if e.Type != nil {
+				refs = append(refs, map[string]any{
+					"type": typeToTypeInfo(e.Type),
+				})
+			}
+			for _, elt := range e.Elts {
+				processExpr(elt)
+			}
+
+		case *goast.UnaryExpr:
+			processExpr(e.X)
+
+		case *goast.BinaryExpr:
+			processExpr(e.X)
+			processExpr(e.Y)
+
+		case *goast.KeyValueExpr:
+			processExpr(e.Key)
+			processExpr(e.Value)
+		}
+	}
+
+	// Process the statement based on its type
+	switch s := stmt.(type) {
+	case *goast.ReturnStmt:
+		for _, result := range s.Results {
+			processExpr(result)
+		}
+
+	case *goast.AssignStmt:
+		for _, rhs := range s.Rhs {
+			processExpr(rhs)
+		}
+
+	case *goast.DeclStmt:
+		if decl, ok := s.Decl.(*goast.GenDecl); ok {
+			for _, spec := range decl.Specs {
+				if vs, ok := spec.(*goast.ValueSpec); ok {
+					for _, val := range vs.Values {
+						processExpr(val)
+					}
+				}
+			}
+		}
+
+	case *goast.ExprStmt:
+		processExpr(s.X)
+	}
+
+	if len(refs) > 0 {
+		return map[string]any{
+			"references": refs,
+		}
+	}
+	return nil
 }
 
 // Helper function to convert Go AST type to TypeInfo
@@ -391,6 +606,7 @@ func (p *Parser) createValueNode(spec *goast.ValueSpec, i int) ast.Node {
 
 	node.SetAttribute("name", name.Name)
 	node.SetAttribute("is_exported", name.IsExported())
+	node.SetAttribute("file_path", pos.Filename)
 
 	var typeInfo *TypeInfo
 
@@ -441,6 +657,7 @@ func (p *Parser) convertGenDecl(decl *goast.GenDecl) ast.Node {
 				Column: pos.Column,
 				Offset: pos.Offset,
 			})
+			groupNode.SetAttribute("file_path", pos.Filename)
 
 			for _, spec := range decl.Specs {
 				if typeSpec, ok := spec.(*goast.TypeSpec); ok {
@@ -463,6 +680,7 @@ func (p *Parser) convertGenDecl(decl *goast.GenDecl) ast.Node {
 						Column: pos.Column,
 						Offset: pos.Offset,
 					})
+					groupNode.SetAttribute("file_path", pos.Filename)
 					for i := range spec.Names {
 						groupNode.AddChild(p.createValueNode(spec, i))
 					}
@@ -480,6 +698,7 @@ func (p *Parser) convertGenDecl(decl *goast.GenDecl) ast.Node {
 				Column: pos.Column,
 				Offset: pos.Offset,
 			})
+			groupNode.SetAttribute("file_path", pos.Filename)
 
 			for _, spec := range decl.Specs {
 				if valueSpec, ok := spec.(*goast.ValueSpec); ok {
@@ -530,6 +749,7 @@ func (p *Parser) createTypeNode(spec *goast.TypeSpec) ast.Node {
 
 	node.SetAttribute("name", spec.Name.Name)
 	node.SetAttribute("is_exported", spec.Name.IsExported())
+	node.SetAttribute("file_path", specPos.Filename)
 
 	switch t := spec.Type.(type) {
 	case *goast.InterfaceType:
