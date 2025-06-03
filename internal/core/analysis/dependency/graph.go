@@ -1,5 +1,9 @@
 package dependency
 
+import (
+	"strings"
+)
+
 // Represents the type of a node in the dependency graph
 type NodeType string
 
@@ -147,11 +151,12 @@ func (g *Graph) FindCircularDependencies() [][]string {
 	var cycles [][]string
 	visited := make(map[string]bool)
 	path := make(map[string]bool)
+	uniqueCycles := make(map[string]struct{})
 
 	// Start DFS from each unvisited node
 	for id := range g.Nodes {
 		if !visited[id] {
-			g.findCycles(id, []string{}, visited, path, &cycles)
+			g.findCycles(id, []string{}, visited, path, uniqueCycles, &cycles)
 		}
 	}
 
@@ -159,33 +164,94 @@ func (g *Graph) FindCircularDependencies() [][]string {
 }
 
 // Helper function to find cycles using DFS
-func (g *Graph) findCycles(nodeID string, currentPath []string, visited, path map[string]bool, cycles *[][]string) {
+func (g *Graph) findCycles(nodeID string, currentPath []string, visited, path map[string]bool, uniqueCycles map[string]struct{}, cycles *[][]string) {
 	visited[nodeID] = true
 	path[nodeID] = true
+	// Use defer to ensure we clean up the path entry even if we panic or return early
+	defer delete(path, nodeID)
+
 	currentPath = append(currentPath, nodeID)
 
 	// Check all dependencies from this node
 	for _, dep := range g.DependenciesFrom(nodeID) {
 		if !path[dep.To] {
 			if !visited[dep.To] {
-				g.findCycles(dep.To, currentPath, visited, path, cycles)
+				g.findCycles(dep.To, currentPath, visited, path, uniqueCycles, cycles)
 			}
 		} else {
 			// Found a cycle
-			cycle := []string{nodeID}
-			for i := len(currentPath) - 1; i >= 0; i-- {
-				if currentPath[i] == dep.To {
+			cycle := []string{}
+			// Find where the cycle starts
+			start := -1
+			for i, node := range currentPath {
+				if node == dep.To {
+					start = i
 					break
 				}
-				cycle = append(cycle, currentPath[i])
 			}
-			cycle = append(cycle, dep.To)
-			*cycles = append(*cycles, cycle)
+			if start >= 0 {
+				// Add nodes in the correct order and complete the cycle
+				cycle = append(cycle, currentPath[start:]...)
+				cycle = append(cycle, dep.To) // Add the closing node to complete the cycle
+
+				// Normalize the cycle and remove the duplicate closing node
+				normalized := g.normalizeCycle(cycle[:len(cycle)-1])
+
+				// Convert the normalized cycle to a string for deduplication
+				cycleKey := g.cycleToString(normalized)
+
+				// Only add if we haven't seen this cycle before
+				if _, exists := uniqueCycles[cycleKey]; !exists {
+					uniqueCycles[cycleKey] = struct{}{}
+					*cycles = append(*cycles, normalized)
+				}
+			}
 		}
 	}
+}
 
-	// Remove the current node from path
-	path[nodeID] = false
+// Helper function to normalize a cycle by finding the lexicographically smallest rotation
+func (g *Graph) normalizeCycle(cycle []string) []string {
+	if len(cycle) <= 1 {
+		return cycle
+	}
+
+	// Find the lexicographically smallest rotation
+	minRotation := cycle
+	for i := 1; i < len(cycle); i++ {
+		// Create a rotation by moving i elements from front to back
+		rotation := append(cycle[i:], cycle[:i]...)
+		// Compare with current minimum
+		if g.compareStringSlices(rotation, minRotation) < 0 {
+			minRotation = rotation
+		}
+	}
+	return minRotation
+}
+
+// Helper function to compare two string slices lexicographically
+func (g *Graph) compareStringSlices(a, b []string) int {
+	for i := 0; i < len(a) && i < len(b); i++ {
+		if a[i] < b[i] {
+			return -1
+		}
+		if a[i] > b[i] {
+			return 1
+		}
+	}
+	if len(a) < len(b) {
+		return -1
+	}
+	if len(a) > len(b) {
+		return 1
+	}
+	return 0
+}
+
+// Helper function to convert a cycle to a string for deduplication
+func (g *Graph) cycleToString(cycle []string) string {
+	// Since the cycle is already normalized, we can just join it
+	return strings.Join(cycle, "|")
 }
 
 // Checks if a specific direct dependency exists
