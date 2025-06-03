@@ -18,3 +18,22 @@ func main() {
 	result := ProcessString("hello")
 	fmt.Println(result)
 }
+
+var (
+	sampleVar = "sample"
+	isSample  = true
+	pi        = 3.14
+)
+
+const (
+	MaxRetries = 3
+	Timeout    = 30
+)
+
+var (
+	defaultRetries = 3
+)
+
+const SingleConst = 42
+
+var singleVar = "test"
