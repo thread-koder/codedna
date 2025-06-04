@@ -63,9 +63,6 @@ type Config struct {
 
 	// Maximum depth for indirect dependency analysis
 	MaxDepth int
-
-	// Additional analyzer-specific options
-	Options map[string]any
 }
 
 // Creates a default configuration
@@ -74,6 +71,5 @@ func NewConfig() *Config {
 		IncludeIndirect: true,
 		AnalyzeExternal: true,
 		MaxDepth:        10,
-		Options:         make(map[string]any),
 	}
 }
